@@ -1,3 +1,4 @@
+import random
 from dataclasses import dataclass
 from typing import Optional
 
@@ -19,7 +20,15 @@ def select_parent(beacons: list[BeaconReceived]) -> Optional[int]:
     return best.sender_id
 
 
-def run_wake_window(network: Network) -> None:
+def assign_jitter(node_ids: list[int], rng: random.Random) -> dict[int, float]:
+    return {node_id: rng.random() for node_id in node_ids}
+
+
+def resolve_join_collisions(jitter: dict[int, float]) -> int:
+    return min(jitter, key=jitter.get)
+
+
+def run_wake_window(network: Network, rng: random.Random) -> None:
     for node in network.nodes.values():
         if node.node_id != HUB_ID:
             node.hop_count = None
@@ -28,32 +37,44 @@ def run_wake_window(network: Network) -> None:
     network.nodes[HUB_ID].hop_count = 0
     network.nodes[HUB_ID].parent_id = None
 
-    frontier = {HUB_ID}
-    while frontier:
-        candidates: dict[int, list[BeaconReceived]] = {}
-        for beaconer_id in frontier:
+    parented = {HUB_ID}
+    pending: dict[int, list[BeaconReceived]] = {}
+
+    while True:
+        for beaconer_id in parented:
             beaconer = network.nodes[beaconer_id]
             for neighbor_id in network.neighbors_of(beaconer_id):
-                neighbor = network.nodes[neighbor_id]
-                if neighbor_id == HUB_ID or neighbor.parent_id is not None:
+                if neighbor_id in parented or neighbor_id in pending:
                     continue
-                candidates.setdefault(neighbor_id, []).append(
+                pending[neighbor_id] = [
                     BeaconReceived(
                         sender_id=beaconer_id,
                         hop_count=beaconer.hop_count,
                         rssi=network.rssi(neighbor_id, beaconer_id),
                     )
-                )
-        if not candidates:
+                ]
+
+        if not pending:
             break
-        newly_parented = set()
-        for node_id, beacons in candidates.items():
+
+        groups: dict[int, list[int]] = {}
+        for node_id, beacons in pending.items():
             parent_id = select_parent(beacons)
-            node = network.nodes[node_id]
-            node.parent_id = parent_id
-            node.hop_count = network.nodes[parent_id].hop_count + 1
-            newly_parented.add(node_id)
-        frontier = newly_parented
+            groups.setdefault(parent_id, []).append(node_id)
+
+        winners = []
+        for parent_id, children in groups.items():
+            jitter = assign_jitter(children, rng)
+            winner_id = resolve_join_collisions(jitter)
+            parent = network.nodes[parent_id]
+            winner = network.nodes[winner_id]
+            winner.parent_id = parent_id
+            winner.hop_count = parent.hop_count + 1
+            winners.append(winner_id)
+
+        for winner_id in winners:
+            del pending[winner_id]
+        parented.update(winners)
 
 
 @dataclass

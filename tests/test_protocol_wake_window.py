@@ -1,3 +1,5 @@
+import random
+
 from sim.node import Node, HUB_ID
 from sim.network import Network
 from sim.protocol import run_wake_window
@@ -15,7 +17,7 @@ def _chain_network():
 
 def test_chain_forms_multi_hop_tree():
     net = _chain_network()
-    run_wake_window(net)
+    run_wake_window(net, random.Random(0))
     assert net.nodes[1].hop_count == 1
     assert net.nodes[1].parent_id == HUB_ID
     assert net.nodes[2].hop_count == 2
@@ -24,6 +26,6 @@ def test_chain_forms_multi_hop_tree():
 
 def test_isolated_node_stays_unparented():
     net = _chain_network()
-    run_wake_window(net)
+    run_wake_window(net, random.Random(0))
     assert net.nodes[3].hop_count is None
     assert net.nodes[3].parent_id is None
