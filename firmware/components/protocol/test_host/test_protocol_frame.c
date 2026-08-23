@@ -93,6 +93,24 @@ static void test_announce_roundtrip(void) {
     CHECK(out.factory_id == 0xABCD);
 }
 
+static void test_config_roundtrip(void) {
+    config_frame_t in = {
+        .target_node_id = 7,
+        .wake_interval_sec = 43200, /* 12h, spec Section 4.1's production default */
+        .moisture_dry_threshold_raw = 1800,
+    };
+    uint8_t buf[PROTOCOL_FRAME_MAX_LEN];
+    size_t n = encode_config_frame(&in, buf);
+    CHECK(n == CONFIG_FRAME_LEN);
+    CHECK(decode_frame_type(buf, n) == FRAME_TYPE_CONFIG);
+
+    config_frame_t out;
+    CHECK(decode_config_frame(buf, n, &out) == 0);
+    CHECK(out.target_node_id == 7);
+    CHECK(out.wake_interval_sec == 43200u);
+    CHECK(out.moisture_dry_threshold_raw == 1800);
+}
+
 static void test_wrong_type_rejected(void) {
     beacon_frame_t beacon_in = { .sender_id = 1, .hop_count = 0 };
     uint8_t buf[PROTOCOL_FRAME_MAX_LEN];
@@ -115,6 +133,7 @@ static void test_max_len_fits_all_frame_types(void) {
     CHECK(PROTOCOL_FRAME_MAX_LEN >= BLINK_FRAME_LEN);
     CHECK(PROTOCOL_FRAME_MAX_LEN >= CLAIM_FRAME_LEN);
     CHECK(PROTOCOL_FRAME_MAX_LEN >= ANNOUNCE_FRAME_LEN);
+    CHECK(PROTOCOL_FRAME_MAX_LEN >= CONFIG_FRAME_LEN);
     /* 802.15.4 aMaxPHYPacketSize is 127 bytes, including the 2-byte
      * hardware-appended FCS and our own header; our largest frame must
      * leave comfortable headroom. */
@@ -128,6 +147,7 @@ int main(void) {
     test_blink_roundtrip();
     test_claim_roundtrip();
     test_announce_roundtrip();
+    test_config_roundtrip();
     test_wrong_type_rejected();
     test_wrong_length_rejected();
     test_max_len_fits_all_frame_types();

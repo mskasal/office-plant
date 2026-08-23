@@ -3,11 +3,13 @@ from hub.protocol_frame import (
     BEACON_FRAME_LEN,
     BLINK_FRAME_LEN,
     CLAIM_FRAME_LEN,
+    CONFIG_FRAME_LEN,
     DATA_FRAME_LEN,
     FRAME_TYPE_ANNOUNCE,
     FRAME_TYPE_BEACON,
     FRAME_TYPE_BLINK,
     FRAME_TYPE_CLAIM,
+    FRAME_TYPE_CONFIG,
     FRAME_TYPE_DATA,
     JOIN_FRAME_LEN,
     PROTOCOL_FRAME_MAX_LEN,
@@ -15,6 +17,7 @@ from hub.protocol_frame import (
     BeaconFrame,
     BlinkFrame,
     ClaimFrame,
+    ConfigFrame,
     DataFrame,
     JoinFrame,
     NeedsWater,
@@ -22,6 +25,7 @@ from hub.protocol_frame import (
     decode_beacon_frame,
     decode_blink_frame,
     decode_claim_frame,
+    decode_config_frame,
     decode_data_frame,
     decode_frame_type,
     decode_join_frame,
@@ -29,6 +33,7 @@ from hub.protocol_frame import (
     encode_beacon_frame,
     encode_blink_frame,
     encode_claim_frame,
+    encode_config_frame,
     encode_data_frame,
     encode_join_frame,
 )
@@ -91,6 +96,16 @@ def test_announce_roundtrip():
     assert out == frame
 
 
+def test_config_roundtrip():
+    frame = ConfigFrame(target_node_id=7, wake_interval_sec=43200, moisture_dry_threshold_raw=1800)
+    buf = encode_config_frame(frame)
+    assert len(buf) == CONFIG_FRAME_LEN
+    assert decode_frame_type(buf) == FRAME_TYPE_CONFIG
+
+    out = decode_config_frame(buf)
+    assert out == frame
+
+
 def test_wrong_type_rejected():
     buf = encode_beacon_frame(BeaconFrame(sender_id=1, hop_count=0))
     assert decode_data_frame(buf) is None
@@ -108,6 +123,7 @@ def test_max_len_fits_all_frame_types():
     assert PROTOCOL_FRAME_MAX_LEN >= BLINK_FRAME_LEN
     assert PROTOCOL_FRAME_MAX_LEN >= CLAIM_FRAME_LEN
     assert PROTOCOL_FRAME_MAX_LEN >= ANNOUNCE_FRAME_LEN
+    assert PROTOCOL_FRAME_MAX_LEN >= CONFIG_FRAME_LEN
     # 802.15.4 aMaxPHYPacketSize is 127 bytes, including the 2-byte
     # hardware-appended FCS and our own header.
     assert PROTOCOL_FRAME_MAX_LEN < 127 - 2

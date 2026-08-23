@@ -100,6 +100,14 @@ size_t encode_announce_frame(const announce_frame_t *in, uint8_t *out_buf) {
     return ANNOUNCE_FRAME_LEN;
 }
 
+size_t encode_config_frame(const config_frame_t *in, uint8_t *out_buf) {
+    out_buf[0] = FRAME_TYPE_CONFIG;
+    write_u16le(out_buf + 1, in->target_node_id);
+    write_u32le(out_buf + 3, in->wake_interval_sec);
+    write_u16le(out_buf + 7, in->moisture_dry_threshold_raw);
+    return CONFIG_FRAME_LEN;
+}
+
 int decode_blink_frame(const uint8_t *buf, size_t len, blink_frame_t *out) {
     if (len != BLINK_FRAME_LEN || buf[0] != FRAME_TYPE_BLINK) {
         return -1;
@@ -123,5 +131,15 @@ int decode_announce_frame(const uint8_t *buf, size_t len, announce_frame_t *out)
         return -1;
     }
     out->factory_id = read_u16le(buf + 1);
+    return 0;
+}
+
+int decode_config_frame(const uint8_t *buf, size_t len, config_frame_t *out) {
+    if (len != CONFIG_FRAME_LEN || buf[0] != FRAME_TYPE_CONFIG) {
+        return -1;
+    }
+    out->target_node_id = read_u16le(buf + 1);
+    out->wake_interval_sec = read_u32le(buf + 3);
+    out->moisture_dry_threshold_raw = read_u16le(buf + 7);
     return 0;
 }
