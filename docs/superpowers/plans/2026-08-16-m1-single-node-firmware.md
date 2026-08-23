@@ -17,6 +17,17 @@ This plan was written with no ESP-IDF toolchain and no physical ESP32-C6 install
 - **Task 1** (protocol frame encode/decode) has **zero ESP-IDF dependencies** and was actually compiled and run with `gcc` while writing this plan — all 6 checks passed. Treat it as verified, same standard as the M0 plan.
 - **Tasks 2–6** use real ESP-IDF APIs — function names, header paths, struct fields, and the event-callback-registration pattern were pulled directly from `github.com/espressif/esp-idf` source (the `esp_sleep.h`, `esp_adc/adc_oneshot.h`, `esp_ieee802154.h`/`esp_ieee802154_types.h` headers, the `ieee802154` component's `Kconfig`, and the real usage pattern in `components/openthread/src/port/esp_openthread_radio.c`) — not from memory. They were **not compiled or flashed** here. The implementer must have ESP-IDF installed and a real ESP32-C6 board; if `idf.py build` fails, treat it as ESP-IDF-version drift to resolve against the cited source files (linked in each task), not as evidence the plan's design is wrong.
 
+### Implementation status (as of this commit)
+
+All source/header/CMake files for Tasks 1–6 have been written exactly as specified below and committed. **Task 1 was compiled and run with `gcc` in the implementing environment — all 6 checks pass, same as during authoring.** Tasks 2–6's code was **not** run through `idf.py build`, flashed, or power-measured — this environment has no ESP-IDF toolchain and no physical ESP32-C6 (same constraint the plan documents above). The five hardware-only checkboxes below are left unchecked for that reason:
+- Task 2, Step 5 (`idf.py build`)
+- Task 3, Step 4 (flash/observe RTC wake)
+- Task 4, Step 4 (flash/observe moisture sensor, dry/wet calibration)
+- Task 6, Step 2 (flash/observe full cycle)
+- Task 6, Step 3 (real power-draw measurement — M1's stated acceptance test)
+
+Whoever has ESP-IDF + real hardware next should run those five and update `MOISTURE_DRY_THRESHOLD_RAW` in `firmware/main/main.c` with real dry/wet readings before treating M1 as fully closed.
+
 ## Global Constraints
 
 - Firmware lives under `firmware/` at repo root; target chip is `esp32c6` (`idf.py set-target esp32c6`).
@@ -46,7 +57,7 @@ This plan was written with no ESP-IDF toolchain and no physical ESP32-C6 install
 - Produces: `size_t encode_beacon_frame(const beacon_frame_t*, uint8_t *out_buf)`, `encode_join_frame`, `encode_data_frame` (same shape) — each writes to `out_buf` and returns bytes written
 - Produces: `int decode_frame_type(const uint8_t *buf, size_t len)` (returns `buf[0]`, or -1 if `len==0`), `int decode_beacon_frame(const uint8_t*, size_t, beacon_frame_t*)`, `decode_join_frame`, `decode_data_frame` (each returns 0 on success, -1 on length/type mismatch)
 
-- [ ] **Step 1: Write the header**
+- [x] **Step 1: Write the header**
 
 ```c
 // firmware/components/protocol/include/protocol_frame.h
@@ -100,7 +111,7 @@ int decode_data_frame(const uint8_t *buf, size_t len, data_frame_t *out);
 #endif
 ```
 
-- [ ] **Step 2: Write the failing test**
+- [x] **Step 2: Write the failing test**
 
 ```c
 // firmware/components/protocol/test_host/test_protocol_frame.c
@@ -204,12 +215,12 @@ int main(void) {
 }
 ```
 
-- [ ] **Step 3: Run test to verify it fails**
+- [x] **Step 3: Run test to verify it fails**
 
 Run: `gcc -Wall -Wextra -std=c11 -Ifirmware/components/protocol/include -o /tmp/test_protocol_frame firmware/components/protocol/test_host/test_protocol_frame.c`
 Expected: FAIL to link/compile — `protocol_frame.c` doesn't exist yet, undefined reference errors for every `encode_*`/`decode_*` function.
 
-- [ ] **Step 4: Implement protocol_frame.c**
+- [x] **Step 4: Implement protocol_frame.c**
 
 ```c
 // firmware/components/protocol/protocol_frame.c
@@ -296,12 +307,12 @@ int decode_data_frame(const uint8_t *buf, size_t len, data_frame_t *out) {
 }
 ```
 
-- [ ] **Step 5: Run test to verify it passes**
+- [x] **Step 5: Run test to verify it passes**
 
 Run: `gcc -Wall -Wextra -std=c11 -Ifirmware/components/protocol/include -o /tmp/test_protocol_frame firmware/components/protocol/protocol_frame.c firmware/components/protocol/test_host/test_protocol_frame.c && /tmp/test_protocol_frame`
 Expected: `All tests passed.` (this exact command was run during plan authoring — 6/6 checks passed, 0 compiler warnings under `-Wall -Wextra`)
 
-- [ ] **Step 6: Add the ESP-IDF component registration (build-system only, not exercised by the host test)**
+- [x] **Step 6: Add the ESP-IDF component registration (build-system only, not exercised by the host test)**
 
 ```cmake
 # firmware/components/protocol/CMakeLists.txt
@@ -311,7 +322,7 @@ idf_component_register(
 )
 ```
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add firmware/components/protocol/
@@ -332,7 +343,7 @@ git commit -m "feat(firmware): add host-testable protocol frame encode/decode"
 - Consumes: nothing yet (this task only proves the project builds and boots)
 - Produces: a buildable, flashable ESP-IDF project skeleton that later tasks add to
 
-- [ ] **Step 1: Create the top-level project file**
+- [x] **Step 1: Create the top-level project file**
 
 ```cmake
 # firmware/CMakeLists.txt
@@ -341,7 +352,7 @@ include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 project(office_plant_node)
 ```
 
-- [ ] **Step 2: Create sdkconfig defaults**
+- [x] **Step 2: Create sdkconfig defaults**
 
 ```
 # firmware/sdkconfig.defaults
@@ -349,7 +360,7 @@ CONFIG_IDF_TARGET="esp32c6"
 CONFIG_IEEE802154_ENABLED=y
 ```
 
-- [ ] **Step 3: Create the main component registration**
+- [x] **Step 3: Create the main component registration**
 
 ```cmake
 # firmware/main/CMakeLists.txt
@@ -360,7 +371,7 @@ idf_component_register(
 )
 ```
 
-- [ ] **Step 4: Create a minimal main.c**
+- [x] **Step 4: Create a minimal main.c**
 
 ```c
 // firmware/main/main.c
@@ -378,7 +389,7 @@ void app_main(void) {
 Run: `cd firmware && idf.py set-target esp32c6 && idf.py build`
 Expected: build succeeds with no errors. If `idf.py` is not found, install ESP-IDF first (`https://docs.espressif.com/projects/esp-idf/en/latest/esp32c6/get-started/`) — that installation step is a one-time environment prerequisite, not part of this plan.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add firmware/CMakeLists.txt firmware/sdkconfig.defaults firmware/main/
@@ -398,7 +409,7 @@ git commit -m "feat(firmware): add ESP-IDF project scaffolding for esp32c6"
 - Produces: `void sleep_wake_log_boot(void)` — logs the wakeup cause and an RTC-persisted boot counter
 - Produces: `void sleep_wake_go_to_sleep(uint32_t seconds)` — enters deep sleep for `seconds`; does not return
 
-- [ ] **Step 1: Write sleep_wake.h**
+- [x] **Step 1: Write sleep_wake.h**
 
 ```c
 // firmware/main/sleep_wake.h
@@ -413,7 +424,7 @@ void sleep_wake_go_to_sleep(uint32_t seconds);
 #endif
 ```
 
-- [ ] **Step 2: Implement sleep_wake.c**
+- [x] **Step 2: Implement sleep_wake.c**
 
 ```c
 // firmware/main/sleep_wake.c
@@ -442,7 +453,7 @@ void sleep_wake_go_to_sleep(uint32_t seconds) {
 }
 ```
 
-- [ ] **Step 3: Wire into main.c**
+- [x] **Step 3: Wire into main.c**
 
 ```c
 // firmware/main/main.c — replace the body of app_main
@@ -467,7 +478,7 @@ void app_main(void) {
 Run: `cd firmware && idf.py -p <PORT> flash monitor`
 Expected: log line `boot #1, wakeup cause = 0` (cause 0 = `ESP_SLEEP_WAKEUP_UNDEFINED`, i.e. power-on reset) on first boot, then the device sleeps; after ~30s it wakes again and logs `boot #2, wakeup cause = <timer-wakeup-value>`, confirming the RTC-persisted counter survives deep sleep and the timer wakeup fires. Press Ctrl+] to exit the monitor.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add firmware/main/sleep_wake.h firmware/main/sleep_wake.c firmware/main/main.c
@@ -488,7 +499,7 @@ git commit -m "feat(firmware): add deep sleep and RTC timer wake"
 - Produces: `int moisture_sensor_read_raw(void)` — returns the raw ADC count (0-4095 at 12-bit default width)
 - Produces: `void moisture_sensor_deinit(void)`
 
-- [ ] **Step 1: Write moisture_sensor.h**
+- [x] **Step 1: Write moisture_sensor.h**
 
 ```c
 // firmware/main/moisture_sensor.h
@@ -508,7 +519,7 @@ void moisture_sensor_deinit(void);
 #endif
 ```
 
-- [ ] **Step 2: Implement moisture_sensor.c**
+- [x] **Step 2: Implement moisture_sensor.c**
 
 ```c
 // firmware/main/moisture_sensor.c
@@ -547,7 +558,7 @@ void moisture_sensor_deinit(void) {
 }
 ```
 
-- [ ] **Step 3: Wire into main.c**
+- [x] **Step 3: Wire into main.c**
 
 ```c
 // firmware/main/main.c — add sensor read before sleeping
@@ -576,7 +587,7 @@ void app_main(void) {
 Run: `cd firmware && idf.py -p <PORT> flash monitor`
 Expected: `moisture raw = <value>` logs each wake cycle. Note the raw value with the sensor in open air (dry baseline) and with the sensing tip in a glass of water (wet baseline) — these two numbers are the calibration input for the `needs_water` threshold used in Task 6; there is no way to know them in advance of the actual sensor hardware, so this step's output is a required input to Task 6, not a gap in this plan.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add firmware/main/moisture_sensor.h firmware/main/moisture_sensor.c firmware/main/main.c
@@ -598,7 +609,7 @@ git commit -m "feat(firmware): add moisture sensor ADC read"
 - Produces: `void ieee802154_radio_send(const uint8_t *frame, uint8_t frame_len)` — `frame`/`frame_len` are a pre-encoded buffer from `encode_*_frame`
 - Produces: `bool ieee802154_radio_receive(uint8_t *out_buf, uint8_t *out_len, int8_t *out_rssi, uint32_t timeout_ms)` — polls a queue fed by the receive-done callback; returns `false` on timeout
 
-- [ ] **Step 1: Write ieee802154_radio.h**
+- [x] **Step 1: Write ieee802154_radio.h**
 
 ```c
 // firmware/main/ieee802154_radio.h
@@ -629,7 +640,7 @@ bool ieee802154_radio_receive(uint8_t *out_buf, uint8_t *out_len, int8_t *out_rs
 #endif
 ```
 
-- [ ] **Step 2: Implement ieee802154_radio.c**
+- [x] **Step 2: Implement ieee802154_radio.c**
 
 ```c
 // firmware/main/ieee802154_radio.c
@@ -730,15 +741,15 @@ bool ieee802154_radio_receive(uint8_t *out_buf, uint8_t *out_len, int8_t *out_rs
 }
 ```
 
-- [ ] **Step 3: Update main component's CMakeLists to require the freertos queue headers (already part of ESP-IDF's default `freertos` component — no new REQUIRES needed) — no file change needed, this step is a no-op confirmation**
+- [x] **Step 3: Update main component's CMakeLists to require the freertos queue headers (already part of ESP-IDF's default `freertos` component — no new REQUIRES needed) — no file change needed, this step is a no-op confirmation**
 
 Verify `firmware/main/CMakeLists.txt` still reads exactly as Task 2 left it (`REQUIRES protocol`) — FreeRTOS is a default dependency of every ESP-IDF component and needs no explicit `REQUIRES` entry.
 
-- [ ] **Step 4: Note for M2 — do not wire this into main.c yet**
+- [x] **Step 4: Note for M2 — do not wire this into main.c yet**
 
 M1's stated goal (spec Section 8) is "radio init/send" as a proof-of-life, not a two-way exchange — that's M2's job once a second physical node exists to receive. Task 6 sends one `DATA` frame per wake cycle using this module; receiving is exercised for real starting in M2.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add firmware/main/ieee802154_radio.h firmware/main/ieee802154_radio.c
@@ -755,7 +766,7 @@ git commit -m "feat(firmware): add 802.15.4 raw radio init/send/receive module"
 **Interfaces:**
 - Consumes: everything produced by Tasks 1, 3, 4, 5
 
-- [ ] **Step 1: Wire the full wake → sense → send → sleep cycle**
+- [x] **Step 1: Wire the full wake → sense → send → sleep cycle**
 
 ```c
 // firmware/main/main.c — final version
@@ -814,7 +825,7 @@ Expected: each ~30s cycle logs boot count, raw moisture, the DATA frame being se
 3. Record the peak current during the active phase (moisture read + radio transmit), which will be on the order of tens of mA for a fraction of a second.
 4. Using the two numbers and the wake frequency the spec assumes (1-2x/day, Section 4.1), compute average daily energy draw and compare it against the solar/battery sizing assumption in spec Section 3. Record the result — this is the real-world input that Task M6 (hardware finalization) needs and cannot fabricate today.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add firmware/main/main.c
