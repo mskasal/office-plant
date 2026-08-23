@@ -18,24 +18,27 @@ from hub.protocol_frame import (
     FRAME_TYPE_BEACON,
     FRAME_TYPE_BLINK,
     FRAME_TYPE_CLAIM,
+    FRAME_TYPE_CONFIG,
     FRAME_TYPE_DATA,
     FRAME_TYPE_JOIN,
     AnnounceFrame,
     BeaconFrame,
     BlinkFrame,
     ClaimFrame,
+    ConfigFrame,
     DataFrame,
     JoinFrame,
     decode_announce_frame,
     decode_beacon_frame,
     decode_blink_frame,
     decode_claim_frame,
+    decode_config_frame,
     decode_data_frame,
     decode_frame_type,
     decode_join_frame,
 )
 
-Frame = Union[BeaconFrame, JoinFrame, DataFrame, BlinkFrame, ClaimFrame, AnnounceFrame]
+Frame = Union[BeaconFrame, JoinFrame, DataFrame, BlinkFrame, ClaimFrame, AnnounceFrame, ConfigFrame]
 
 
 @dataclass
@@ -56,6 +59,7 @@ _DECODERS = {
     FRAME_TYPE_BLINK: decode_blink_frame,
     FRAME_TYPE_CLAIM: decode_claim_frame,
     FRAME_TYPE_ANNOUNCE: decode_announce_frame,
+    FRAME_TYPE_CONFIG: decode_config_frame,
 }
 
 

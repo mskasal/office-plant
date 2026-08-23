@@ -12,6 +12,8 @@
   .status-offline { color: #b91c1c; font-style: italic; }
   .status-unknown { color: #666; }
   nav { margin-bottom: 1.5rem; }
+  form.config-form { display: flex; gap: 0.25rem; align-items: center; }
+  form.config-form input { width: 5rem; padding: 0.2rem; }
 </style>
 </head>
 <body>
@@ -24,6 +26,7 @@
       <th>Status</th>
       <th>Battery</th>
       <th>Last seen</th>
+      <th>Wake interval (s) / dry threshold</th>
     </tr>
   </thead>
   <tbody>
@@ -43,11 +46,20 @@
       </td>
       <td>{% if node.battery_level is not none %}{{ node.battery_level }}%{% else %}—{% endif %}</td>
       <td>{% if node.last_seen_at is not none %}{{ node.last_seen_at }}{% else %}never{% endif %}</td>
+      <td>
+        <form class="config-form" method="post" action="/nodes/{{ node.id }}/config">
+          <input type="number" name="wake_interval_sec" placeholder="seconds"
+                 value="{{ node.wake_interval_sec if node.wake_interval_sec is not none else '' }}" required>
+          <input type="number" name="moisture_dry_threshold_raw" placeholder="0-4095" required>
+          <button type="submit">Push</button>
+        </form>
+      </td>
     </tr>
   {% else %}
-    <tr><td colspan="4">No nodes have reported yet.</td></tr>
+    <tr><td colspan="5">No nodes have reported yet.</td></tr>
   {% endfor %}
   </tbody>
 </table>
+<p>Pushed config takes effect on that node's next check-in — never out of band (spec Section 4.1).</p>
 </body>
 </html>

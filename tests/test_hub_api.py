@@ -125,3 +125,43 @@ def test_discover_claim_creates_node_and_removes_it_from_discover_page():
 
     discover_resp = client.get("/discover")
     assert "No unclaimed nodes discoverable" in discover_resp.text
+
+
+def test_set_node_config_stores_desired_config_and_redirects():
+    client, conn, _ = _client_with_conn()
+    conn.execute("INSERT INTO nodes (id, role) VALUES (1, 'leaf')")
+    conn.commit()
+
+    resp = client.post(
+        "/nodes/1/config",
+        data={"wake_interval_sec": "3600", "moisture_dry_threshold_raw": "1900"},
+        follow_redirects=False,
+    )
+
+    assert resp.status_code == 303
+    row = conn.execute(
+        "SELECT wake_interval_sec, moisture_dry_threshold_raw FROM node_config WHERE node_id = 1"
+    ).fetchone()
+    assert row == (3600, 1900)
+
+
+def test_dashboard_uses_configured_wake_interval_for_offline_threshold():
+    client, conn, _ = _client_with_conn()
+    # Configured interval is 1 hour; last seen 90 minutes ago -- offline
+    # under the real configured interval, but would read as "online" if the
+    # dashboard incorrectly fell back to the 30s bench default.
+    configured_interval_sec = 3600
+    last_seen = int(time.time()) - (configured_interval_sec * OFFLINE_THRESHOLD_MULTIPLIER) - 1
+    conn.execute(
+        "INSERT INTO nodes (id, name, role, last_seen_at, battery_level) VALUES (1, 'Ficus', 'leaf', ?, 50)",
+        (last_seen,),
+    )
+    conn.execute(
+        "INSERT INTO node_config (node_id, wake_interval_sec, moisture_dry_threshold_raw) VALUES (1, ?, 2000)",
+        (configured_interval_sec,),
+    )
+    conn.commit()
+
+    resp = client.get("/")
+
+    assert "Offline" in resp.text

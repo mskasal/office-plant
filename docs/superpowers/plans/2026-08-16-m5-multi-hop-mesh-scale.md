@@ -24,3 +24,16 @@ M1-M4 complete: node firmware (sense/sleep/radio/provisioning) and hub software 
 ## Output
 
 A short written record (can be an update to this file, or a new dated note) of: how many nodes were deployed, where backbone nodes ended up being necessary, and whether the 90% bar was met. This record is the direct input to M6 (which needs real range/placement data) and M7 (which needs to know the mesh already works at moderate scale before committing to the full 30-node office rollout).
+
+### Implementation status (as of this commit)
+
+M5 itself has no code deliverable — it's a physical deployment/validation process (Process steps 1-4 above: build nodes, walk the real office, run the checklist against real hardware over a 48-hour window). None of that has been done here; it requires real nodes, a real office, and time this environment doesn't have. **The Output section above is still unwritten — nothing has been fabricated in its place.**
+
+What was done instead: while reading this plan's validation checklist item 4 ("push a config change from the hub... confirm a node picks it up on its next check-in"), found that the mechanism it depends on didn't exist. Spec Section 4.1 commits to hub-governed config push as core v1 protocol behavior, but nothing through M4 implemented a frame or firmware/hub code for it — so checklist item 4 wasn't actually runnable. Closed that gap:
+
+- ✅ **`FRAME_TYPE_CONFIG`** (protocol_frame.h/.c, hub/protocol_frame.py) — hub → node, piggybacked on a DATA response window, carries `wake_interval_sec` + `moisture_dry_threshold_raw`, targeted by `target_node_id`. Host-tested (16 C checks, 12 pytest cases, all passing).
+- ✅ **`hub/node_config.py`** — operator-set desired config per node (`node_config` table, new — spec Section 6's schema never accounted for where this state lives, another real gap), `maybe_push_config` sends it back on that node's next DATA frame. Host-tested (6 cases).
+- ✅ **Dashboard action** — `/nodes/{id}/config` lets an operator actually push a change from the running hub, which is what checklist item 4 needs to be testable at all. Also fixed the dashboard's offline-threshold math to use each node's real configured interval instead of always assuming the M1/M2 bench default.
+- ⚠️ **`firmware/main/node_config.c/h`**, wired into `leaf_main.c` (listens for a targeted CONFIG frame after sending DATA, applies and persists it via NVS, re-reads the interval before sleeping so a just-pushed config takes effect immediately) — written against real ESP-IDF NVS APIs but not run through `idf.py build`, same constraint as every firmware change since M1.
+
+**None of the actual M5 process (build nodes, deploy, 48-hour observation, backbone placement, the 90% success bar) has been attempted.** That's real-world work for whoever has the hardware and office — this commit only makes sure the config-push half of the validation checklist has something to actually test once that happens.

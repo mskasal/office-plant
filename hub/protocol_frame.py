@@ -20,6 +20,7 @@ FRAME_TYPE_DATA = 0x03
 FRAME_TYPE_BLINK = 0x04
 FRAME_TYPE_CLAIM = 0x05
 FRAME_TYPE_ANNOUNCE = 0x06
+FRAME_TYPE_CONFIG = 0x07
 
 BEACON_FRAME_LEN = 4
 JOIN_FRAME_LEN = 5
@@ -33,6 +34,11 @@ CLAIM_FRAME_LEN = JOIN_FRAME_LEN
 # CLAIM are hub-initiated and require already knowing which node to target).
 # See firmware/components/protocol/include/protocol_frame.h's matching note.
 ANNOUNCE_FRAME_LEN = 3
+# CONFIG is new, not in any prior milestone's task list: spec Section 4.1
+# commits to config being piggybacked on a node's DATA response window as
+# core v1 behavior, but nothing through M4 implemented a frame for it. See
+# protocol_frame.h's matching note for why M5 needs this to exist at all.
+CONFIG_FRAME_LEN = 9
 PROTOCOL_FRAME_MAX_LEN = DATA_FRAME_LEN
 
 
@@ -79,7 +85,14 @@ class AnnounceFrame:
     factory_id: int
 
 
-Frame = Union[BeaconFrame, JoinFrame, DataFrame, BlinkFrame, ClaimFrame, AnnounceFrame]
+@dataclass
+class ConfigFrame:
+    target_node_id: int
+    wake_interval_sec: int
+    moisture_dry_threshold_raw: int
+
+
+Frame = Union[BeaconFrame, JoinFrame, DataFrame, BlinkFrame, ClaimFrame, AnnounceFrame, ConfigFrame]
 
 
 def encode_beacon_frame(frame: BeaconFrame) -> bytes:
@@ -126,6 +139,15 @@ def encode_claim_frame(frame: ClaimFrame) -> bytes:
 
 def encode_announce_frame(frame: AnnounceFrame) -> bytes:
     return bytes([FRAME_TYPE_ANNOUNCE]) + frame.factory_id.to_bytes(2, "little")
+
+
+def encode_config_frame(frame: ConfigFrame) -> bytes:
+    return (
+        bytes([FRAME_TYPE_CONFIG])
+        + frame.target_node_id.to_bytes(2, "little")
+        + frame.wake_interval_sec.to_bytes(4, "little")
+        + frame.moisture_dry_threshold_raw.to_bytes(2, "little")
+    )
 
 
 def decode_frame_type(buf: bytes) -> Optional[int]:
@@ -185,3 +207,13 @@ def decode_announce_frame(buf: bytes) -> Optional[AnnounceFrame]:
     if len(buf) != ANNOUNCE_FRAME_LEN or buf[0] != FRAME_TYPE_ANNOUNCE:
         return None
     return AnnounceFrame(factory_id=int.from_bytes(buf[1:3], "little"))
+
+
+def decode_config_frame(buf: bytes) -> Optional[ConfigFrame]:
+    if len(buf) != CONFIG_FRAME_LEN or buf[0] != FRAME_TYPE_CONFIG:
+        return None
+    return ConfigFrame(
+        target_node_id=int.from_bytes(buf[1:3], "little"),
+        wake_interval_sec=int.from_bytes(buf[3:7], "little"),
+        moisture_dry_threshold_raw=int.from_bytes(buf[7:9], "little"),
+    )

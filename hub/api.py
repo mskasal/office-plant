@@ -18,15 +18,14 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from hub.models import connect
+from hub.node_config import set_desired_config
 from hub.provisioning import Hub as ProvisioningHub
 
 DASHBOARD_DIR = Path(__file__).parent / "dashboard"
 templates = Jinja2Templates(directory=str(DASHBOARD_DIR / "templates"))
 
-# M3 has no per-node wake schedule yet (that arrives with M4's hub-governed
-# config push, spec Section 4.1) — this bench-only constant matches M1/M2
-# firmware's hardcoded TEST_WAKE_INTERVAL_SEC=30 and should be replaced by a
-# real per-node interval once M4 exists.
+# Fallback for a node with no operator-set config yet (hub/node_config.py,
+# M5) — matches M1/M2 firmware's hardcoded TEST_WAKE_INTERVAL_SEC=30.
 DEFAULT_WAKE_INTERVAL_SEC = 30
 OFFLINE_THRESHOLD_MULTIPLIER = 2  # spec Section 6: ">2x its expected interval"
 
@@ -47,18 +46,23 @@ def create_app(db_path: str = "hub.db", send: Optional[Callable[[bytes], None]] 
         now = int(time.time())
         rows = app.state.conn.execute(
             """
-            SELECT n.id, n.name, n.battery_level, n.last_seen_at, r.moisture_status
+            SELECT n.id, n.name, n.battery_level, n.last_seen_at, r.moisture_status, c.wake_interval_sec
             FROM nodes n
             LEFT JOIN readings r
                 ON r.node_id = n.id
                 AND r.timestamp = (SELECT MAX(timestamp) FROM readings WHERE node_id = n.id)
+            LEFT JOIN node_config c ON c.node_id = n.id
             ORDER BY n.id
             """
         ).fetchall()
 
-        offline_after_sec = DEFAULT_WAKE_INTERVAL_SEC * OFFLINE_THRESHOLD_MULTIPLIER
         nodes = []
-        for node_id, name, battery_level, last_seen_at, moisture_status in rows:
+        for node_id, name, battery_level, last_seen_at, moisture_status, wake_interval_sec in rows:
+            # Each node's own configured interval when an operator has set
+            # one (hub/node_config.py, M5); DEFAULT_WAKE_INTERVAL_SEC
+            # otherwise, since a node not yet given a real production
+            # interval is still running M1/M2 firmware's 30s bench default.
+            offline_after_sec = (wake_interval_sec or DEFAULT_WAKE_INTERVAL_SEC) * OFFLINE_THRESHOLD_MULTIPLIER
             is_offline = last_seen_at is None or (now - last_seen_at) > offline_after_sec
             nodes.append(
                 {
@@ -68,10 +72,19 @@ def create_app(db_path: str = "hub.db", send: Optional[Callable[[bytes], None]] 
                     "last_seen_at": last_seen_at,
                     "moisture_status": moisture_status,
                     "offline": is_offline,
+                    "wake_interval_sec": wake_interval_sec,
                 }
             )
 
         return templates.TemplateResponse(request, "index.html", {"nodes": nodes})
+
+    @app.post("/nodes/{node_id}/config")
+    def set_node_config(node_id: int, wake_interval_sec: int = Form(...), moisture_dry_threshold_raw: int = Form(...)):
+        """Sets the desired config for a node (spec Section 4.1); takes
+        effect on that node's next check-in, per maybe_push_config in
+        hub/node_config.py — never pushed out of band."""
+        set_desired_config(app.state.conn, node_id, wake_interval_sec, moisture_dry_threshold_raw)
+        return RedirectResponse("/", status_code=303)
 
     @app.get("/discover", response_class=HTMLResponse)
     def discover(request: Request):
