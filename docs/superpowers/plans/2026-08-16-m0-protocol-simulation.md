@@ -42,7 +42,7 @@
   - `parent_id: Optional[int] = None`
   - `claimed: bool = False`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_node.py
@@ -62,12 +62,12 @@ def test_hub_id_is_zero():
     assert HUB_ID == 0
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pytest tests/test_node.py -v`
 Expected: FAIL with `ModuleNotFoundError: No module named 'sim'`
 
-- [ ] **Step 3: Add project scaffolding**
+- [x] **Step 3: Add project scaffolding**
 
 ```toml
 # pyproject.toml
@@ -79,7 +79,7 @@ pythonpath = ["."]
 # sim/__init__.py
 ```
 
-- [ ] **Step 4: Implement the Node model**
+- [x] **Step 4: Implement the Node model**
 
 ```python
 # sim/node.py
@@ -103,12 +103,12 @@ class Node:
     claimed: bool = False
 ```
 
-- [ ] **Step 5: Run test to verify it passes**
+- [x] **Step 5: Run test to verify it passes**
 
 Run: `pytest tests/test_node.py -v`
 Expected: PASS (2 passed)
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add pyproject.toml sim/__init__.py sim/node.py tests/test_node.py
@@ -134,7 +134,7 @@ git commit -m "feat(sim): add project scaffolding and Node data model"
   - `.rssi(a_id: int, b_id: int) -> float` (simplified: `-distance`; higher/less-negative = stronger signal, monotonic in distance — a deliberate simplification documented here, not real dBm; real RSSI arrives in a hardware milestone)
   - `.neighbors_of(node_id: int) -> list[int]` (all other nodes within `radio_range`, excluding self)
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_network.py
@@ -172,12 +172,12 @@ def test_remove_node():
     assert net.neighbors_of(0) == []
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pytest tests/test_network.py -v`
 Expected: FAIL with `ModuleNotFoundError: No module named 'sim.network'`
 
-- [ ] **Step 3: Implement Network**
+- [x] **Step 3: Implement Network**
 
 ```python
 # sim/network.py
@@ -213,12 +213,12 @@ class Network:
         ]
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pytest tests/test_network.py -v`
 Expected: PASS (4 passed)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add sim/network.py tests/test_network.py
@@ -237,7 +237,7 @@ git commit -m "feat(sim): add Network topology and simplified RSSI model"
 - Produces: `BeaconReceived` dataclass in `sim/protocol.py`: `sender_id: int`, `hop_count: int`, `rssi: float`
 - Produces: `select_parent(beacons: list[BeaconReceived]) -> Optional[int]` — lowest `hop_count` wins; ties broken by highest `rssi`; returns `None` for an empty list.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_protocol_parent_selection.py
@@ -264,12 +264,12 @@ def test_tie_broken_by_best_rssi():
     assert select_parent(beacons) == 2
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pytest tests/test_protocol_parent_selection.py -v`
 Expected: FAIL with `ModuleNotFoundError: No module named 'sim.protocol'`
 
-- [ ] **Step 3: Implement select_parent**
+- [x] **Step 3: Implement select_parent**
 
 ```python
 # sim/protocol.py
@@ -291,12 +291,12 @@ def select_parent(beacons: list[BeaconReceived]) -> Optional[int]:
     return best.sender_id
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pytest tests/test_protocol_parent_selection.py -v`
 Expected: PASS (3 passed)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add sim/protocol.py tests/test_protocol_parent_selection.py
@@ -315,7 +315,7 @@ git commit -m "feat(sim): add beacon-based parent selection"
 - Consumes: `Network` from `sim/network.py`; `HUB_ID` from `sim/node.py`; `BeaconReceived`, `select_parent` from `sim/protocol.py`
 - Produces: `run_wake_window(network: Network) -> None` — mutates every non-hub node's `hop_count`/`parent_id` in place by propagating beacons outward from `HUB_ID` in BFS layers, using `select_parent` at each node. Resets all non-hub nodes' `hop_count`/`parent_id` to `None` at the start of every call (required for self-healing later).
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_protocol_wake_window.py
@@ -350,12 +350,12 @@ def test_isolated_node_stays_unparented():
     assert net.nodes[3].parent_id is None
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pytest tests/test_protocol_wake_window.py -v`
 Expected: FAIL with `ImportError: cannot import name 'run_wake_window'`
 
-- [ ] **Step 3: Implement run_wake_window**
+- [x] **Step 3: Implement run_wake_window**
 
 ```python
 # sim/protocol.py (append)
@@ -400,12 +400,12 @@ def run_wake_window(network: Network) -> None:
         frontier = newly_parented
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pytest tests/test_protocol_wake_window.py -v`
 Expected: PASS (2 passed)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add sim/protocol.py tests/test_protocol_wake_window.py
@@ -425,7 +425,7 @@ git commit -m "feat(sim): add multi-hop tree formation for a single wake window"
 - Produces: `DataFrame` dataclass in `sim/protocol.py`: `source_id: int`, `needs_water: Optional[bool]`, `battery_pct: float`, `timestamp: int`
 - Produces: `collect_data(network: Network, timestamp: int) -> dict[int, DataFrame]` — one entry per non-hub node whose `hop_count is not None` (i.e., successfully attached to the tree this window); unattached/hub nodes excluded.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_protocol_data.py
@@ -451,12 +451,12 @@ def test_collect_data_includes_only_attached_nodes():
     assert frame.timestamp == 42
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pytest tests/test_protocol_data.py -v`
 Expected: FAIL with `ImportError: cannot import name 'collect_data'`
 
-- [ ] **Step 3: Implement DataFrame and collect_data**
+- [x] **Step 3: Implement DataFrame and collect_data**
 
 ```python
 # sim/protocol.py (append)
@@ -485,12 +485,12 @@ def collect_data(network: Network, timestamp: int) -> dict[int, "DataFrame"]:
     return frames
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pytest tests/test_protocol_data.py -v`
 Expected: PASS (1 passed)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add sim/protocol.py tests/test_protocol_data.py
@@ -512,7 +512,7 @@ git commit -m "feat(sim): add DATA payload and hub-side collection"
 - Produces: `resolve_join_collisions(jitter: dict[int, float]) -> int` — returns the `node_id` with the lowest jitter value.
 - Modifies: `run_wake_window(network: Network, rng: random.Random) -> None` — **signature change**: now requires an `rng` argument. When multiple pending children pick the same parent in the same sub-tick, only the lowest-jitter one joins; the rest retry (fresh jitter) on the next sub-tick, guaranteeing everyone reachable still joins within the same window.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```python
 # tests/test_protocol_collisions.py
@@ -552,12 +552,12 @@ def test_contending_children_all_eventually_join_shared_parent():
         assert net.nodes[child_id].hop_count == 2
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `pytest tests/test_protocol_collisions.py -v`
 Expected: FAIL with `ImportError: cannot import name 'assign_jitter'`
 
-- [ ] **Step 3: Implement collision resolution and update run_wake_window**
+- [x] **Step 3: Implement collision resolution and update run_wake_window**
 
 ```python
 # sim/protocol.py — replace the existing run_wake_window with this version,
@@ -624,19 +624,19 @@ def run_wake_window(network: Network, rng: random.Random) -> None:
 
 Note: this replaces the frontier/BFS-layer loop from Task 4 with a sub-tick/pending-pool loop that additionally handles collisions. The observable behavior for non-contending topologies (Task 4's tests) is unchanged.
 
-- [ ] **Step 4: Update the Task 4 test file for the new signature**
+- [x] **Step 4: Update the Task 4 test file for the new signature**
 
 ```python
 # tests/test_protocol_wake_window.py — add `import random` at the top,
 # and change both calls from `run_wake_window(net)` to `run_wake_window(net, random.Random(0))`
 ```
 
-- [ ] **Step 5: Run the full test suite to verify everything passes**
+- [x] **Step 5: Run the full test suite to verify everything passes**
 
 Run: `pytest -v`
 Expected: all tests pass, including the updated `test_protocol_wake_window.py` and the new `test_protocol_collisions.py`
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add sim/protocol.py tests/test_protocol_wake_window.py tests/test_protocol_collisions.py
@@ -659,7 +659,7 @@ git commit -m "feat(sim): add randomized-backoff collision resolution to wake wi
   - `.history: list[dict[int, DataFrame]]`
   - `.run_round(self) -> dict[int, DataFrame]` — runs one wake window + data collection, appends to `history`, returns this round's frames
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_simulator.py
@@ -693,12 +693,12 @@ def test_multiple_rounds_accumulate_history():
     assert len(sim.history) == 2
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pytest tests/test_simulator.py -v`
 Expected: FAIL with `ModuleNotFoundError: No module named 'sim.simulator'`
 
-- [ ] **Step 3: Implement Simulator**
+- [x] **Step 3: Implement Simulator**
 
 ```python
 # sim/simulator.py
@@ -723,12 +723,12 @@ class Simulator:
         return frames
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pytest tests/test_simulator.py -v`
 Expected: PASS (2 passed)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add sim/simulator.py tests/test_simulator.py
@@ -747,7 +747,7 @@ No production code changes — this task validates spec Section 4.2's self-heali
 **Interfaces:**
 - Consumes: `Node`, `HUB_ID` from `sim/node.py`; `Network` from `sim/network.py`; `Simulator` from `sim/simulator.py`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_self_healing.py
@@ -790,19 +790,19 @@ def test_heals_by_reparenting_when_a_node_moves_closer_to_hub():
     assert net.nodes[2].parent_id == HUB_ID
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pytest tests/test_self_healing.py -v`
 Expected: FAIL only if a prior task's implementation is wrong; if Tasks 1-7 are correct, this may pass immediately — run it anyway to confirm the *behavior*, not just import errors, is what's tested.
 
-- [ ] **Step 3: (No implementation needed — this task validates existing behavior)**
+- [x] **Step 3: (No implementation needed — this task validates existing behavior)**
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pytest tests/test_self_healing.py -v`
 Expected: PASS (2 passed)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add tests/test_self_healing.py
@@ -826,7 +826,7 @@ git commit -m "test(sim): validate self-healing on node loss and movement"
   - `.claim(network: Network, node_id: int, name: str) -> None` — sets `node.claimed = True`, records the name
   - `.factory_reset(network: Network, node_id: int) -> None` — sets `node.claimed = False`, removes the name
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_provisioning.py
@@ -868,12 +868,12 @@ def test_factory_reset_makes_node_discoverable_again():
     assert hub.discoverable_nodes(net, HUB_ID) == [1]
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pytest tests/test_provisioning.py -v`
 Expected: FAIL with `ModuleNotFoundError: No module named 'sim.provisioning'`
 
-- [ ] **Step 3: Implement Hub provisioning**
+- [x] **Step 3: Implement Hub provisioning**
 
 ```python
 # sim/provisioning.py
@@ -906,12 +906,12 @@ class Hub:
         self.claimed_names.pop(node_id, None)
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pytest tests/test_provisioning.py -v`
 Expected: PASS (3 passed)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add sim/provisioning.py tests/test_provisioning.py
@@ -930,7 +930,7 @@ No production code changes — this is the M0 capstone validation described in s
 **Interfaces:**
 - Consumes: `Node`, `HUB_ID` from `sim/node.py`; `Network` from `sim/network.py`; `Simulator` from `sim/simulator.py`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_scale.py
@@ -1020,19 +1020,19 @@ def test_self_heals_after_removing_a_relay_node_mid_tree():
     _assert_tree_is_consistent(net, expected)
 ```
 
-- [ ] **Step 2: Run test to verify it fails or passes for the right reasons**
+- [x] **Step 2: Run test to verify it fails or passes for the right reasons**
 
 Run: `pytest tests/test_scale.py -v`
 Expected: PASS if Tasks 1-9 are implemented correctly — this task's purpose is to exercise the existing implementation at scale and catch any bug that only manifests with more nodes/collisions, so a pass here is the desired outcome, not evidence the test is trivial (the geometric ground-truth comparison and tree-consistency invariant would fail on a buggy implementation).
 
-- [ ] **Step 3: (No implementation needed — this task validates existing behavior at scale)**
+- [x] **Step 3: (No implementation needed — this task validates existing behavior at scale)**
 
-- [ ] **Step 4: Run the full test suite one final time**
+- [x] **Step 4: Run the full test suite one final time**
 
 Run: `pytest -v`
 Expected: all tests across every task pass
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add tests/test_scale.py
