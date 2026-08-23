@@ -54,3 +54,25 @@ def run_wake_window(network: Network) -> None:
             node.hop_count = network.nodes[parent_id].hop_count + 1
             newly_parented.add(node_id)
         frontier = newly_parented
+
+
+@dataclass
+class DataFrame:
+    source_id: int
+    needs_water: Optional[bool]
+    battery_pct: float
+    timestamp: int
+
+
+def collect_data(network: Network, timestamp: int) -> dict[int, "DataFrame"]:
+    frames: dict[int, DataFrame] = {}
+    for node in network.nodes.values():
+        if node.node_id == HUB_ID or node.hop_count is None:
+            continue
+        frames[node.node_id] = DataFrame(
+            source_id=node.node_id,
+            needs_water=node.needs_water,
+            battery_pct=node.battery_pct,
+            timestamp=timestamp,
+        )
+    return frames
