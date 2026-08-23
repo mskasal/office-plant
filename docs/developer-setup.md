@@ -76,7 +76,42 @@ Then **log out and back in** (group membership doesn't apply to your current ses
 
 ## 4. Hub software environment (Python) — needed starting M3
 
-M3 hasn't been implemented yet (see `docs/superpowers/plans/2026-08-16-m3-hub-software.md`), so there's no `hub/` directory or `requirements.txt` to install right now. Once it exists, the pattern will be the standard one: a virtual environment (`python -m venv .venv && source .venv/bin/activate`) plus `pip install -r hub/requirements.txt`. This section will get filled in with real commands as part of implementing M3, rather than guessed now.
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r hub/requirements.txt
+pip install pytest  # for tests/test_hub_*.py
+```
+
+Run the hub's own test suite (no serial hardware needed — `tests/test_hub_serial_bridge.py` uses a fake in-memory port):
+
+```bash
+pytest tests/test_hub_*.py -v
+```
+
+Run the dashboard against a local SQLite file for bench testing (M3's plan explicitly allows this on your dev machine — a Raspberry Pi only matters once you want a standalone always-on hub):
+
+```bash
+python -c "from hub.api import create_app; import uvicorn; uvicorn.run(create_app('hub.db'), host='127.0.0.1', port=8000)"
+```
+
+Then open `http://127.0.0.1:8000/` in a browser. With no real dongle attached yet, you can exercise the ingest path directly:
+
+```bash
+python -c "
+from hub.ingest import ingest_data_frame
+from hub.models import connect
+from hub.protocol_frame import DataFrame, NeedsWater
+import time
+
+conn = connect('hub.db')
+ingest_data_frame(conn, DataFrame(sender_id=1, needs_water=NeedsWater.TRUE, battery_pct=80, timestamp=0), int(time.time()))
+"
+```
+
+Refresh the dashboard page — node 1 should now show up needing water.
+
+**Not yet wired up**: `hub/serial_bridge.py` talks to the dongle's serial port via any pyserial-shaped object (`readline()`/`write()`), but nothing yet opens a real `serial.Serial(...)` and feeds it into `SerialBridge` + `ingest_data_frame` in a running loop — that glue, plus flashing the extended `root_main.c` (now speaking the `RX`/`TX` line protocol over a secondary UART — see `firmware/main/dongle_uart.c`) to a real dongle, is M3 Task 5's bench test and needs real hardware to do and verify.
 
 ## 5. Sanity-check your setup
 

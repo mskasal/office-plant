@@ -4,6 +4,7 @@
 #include "freertos/task.h"
 #include "ieee802154_radio.h"
 #include "protocol_frame.h"
+#include "dongle_uart.h"
 
 static const char *TAG = "root_main";
 
@@ -63,6 +64,7 @@ static void log_received_frame(const uint8_t *buf, uint8_t len, int8_t rssi) {
 
 void root_main_run(void) {
     ieee802154_radio_init(ROOT_SHORT_ADDRESS);
+    dongle_uart_init();
     ESP_LOGI(TAG, "root role started, beaconing every %d ms", BEACON_INTERVAL_MS);
 
     TickType_t last_beacon = xTaskGetTickCount();
@@ -73,11 +75,19 @@ void root_main_run(void) {
             last_beacon = now;
         }
 
+        uint8_t tx_buf[PROTOCOL_FRAME_MAX_LEN];
+        uint8_t tx_len;
+        if (dongle_uart_poll_tx_frame(tx_buf, &tx_len)) {
+            ieee802154_radio_send(tx_buf, tx_len);
+            ESP_LOGI(TAG, "sent frame from Pi TX command, %d bytes", tx_len);
+        }
+
         uint8_t buf[PROTOCOL_FRAME_MAX_LEN];
         uint8_t len;
         int8_t rssi;
         if (ieee802154_radio_receive(buf, &len, &rssi, RECEIVE_POLL_TIMEOUT_MS)) {
             log_received_frame(buf, len, rssi);
+            dongle_uart_send_rx_line(buf, len, rssi);
         }
     }
 }

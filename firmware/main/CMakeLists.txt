@@ -3,9 +3,9 @@ if(NOT DEFINED NODE_IS_ROOT)
 endif()
 
 idf_component_register(
-    SRCS "main.c" "root_main.c" "leaf_main.c" "sleep_wake.c" "moisture_sensor.c" "ieee802154_radio.c"
+    SRCS "main.c" "root_main.c" "leaf_main.c" "sleep_wake.c" "moisture_sensor.c" "ieee802154_radio.c" "dongle_uart.c"
     INCLUDE_DIRS "."
-    REQUIRES protocol mesh
+    REQUIRES protocol mesh driver
 )
 
 target_compile_definitions(${COMPONENT_LIB} PRIVATE NODE_IS_ROOT=${NODE_IS_ROOT})
