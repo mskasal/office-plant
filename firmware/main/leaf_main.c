@@ -8,16 +8,18 @@
 #include "protocol_frame.h"
 #include "mesh_parent_select.h"
 #include "node_identity.h"
+#include "node_config.h"
 
 static const char *TAG = "leaf_main";
 
-#define TEST_WAKE_INTERVAL_SEC 30
 #define DISCOVERY_LISTEN_TIMEOUT_MS 2000
 #define MAX_PARENT_CANDIDATES 8
 
-/* Same placeholder as M1's main.c — still needs real dry/wet calibration
- * from hardware once available (see M1 plan Task 4, Step 4). */
-#define MOISTURE_DRY_THRESHOLD_RAW 2000
+/* How long to listen for a piggybacked CONFIG frame after sending DATA
+ * (spec Section 4.1: "applies any config pushed back down -> sleeps").
+ * Short because the hub replies within the same window this node's own
+ * DATA send just opened — it isn't waiting on a separate radio cycle. */
+#define CONFIG_LISTEN_TIMEOUT_MS 1000
 
 static size_t listen_for_beacons(parent_candidate_t *candidates, size_t max_candidates) {
     size_t count = 0;
@@ -51,9 +53,32 @@ static size_t listen_for_beacons(parent_candidate_t *candidates, size_t max_cand
     return count;
 }
 
+/* Listens briefly for a CONFIG frame targeting this node and applies it
+ * (spec Section 4.1). Silently does nothing if none arrives — a node not
+ * given a new config just keeps its current one, which is the expected
+ * common case, not an error. */
+static void listen_and_apply_config(uint16_t short_address) {
+    uint8_t buf[PROTOCOL_FRAME_MAX_LEN];
+    uint8_t len;
+    int8_t rssi;
+    if (!ieee802154_radio_receive(buf, &len, &rssi, CONFIG_LISTEN_TIMEOUT_MS)) {
+        return;
+    }
+    if (decode_frame_type(buf, len) != FRAME_TYPE_CONFIG) {
+        return;
+    }
+    config_frame_t config;
+    if (decode_config_frame(buf, len, &config) != 0 || config.target_node_id != short_address) {
+        return;
+    }
+    node_config_apply(config.wake_interval_sec, config.moisture_dry_threshold_raw);
+}
+
 void leaf_main_run(void) {
     sleep_wake_log_boot();
     uint16_t short_address = node_identity_get_short_address();
+    uint32_t wake_interval_sec = node_config_get_wake_interval_sec();
+    uint16_t moisture_dry_threshold_raw = node_config_get_moisture_dry_threshold_raw();
     ieee802154_radio_init(short_address);
 
     parent_candidate_t candidates[MAX_PARENT_CANDIDATES];
@@ -62,7 +87,7 @@ void leaf_main_run(void) {
     int parent_id = select_parent(candidates, candidate_count);
     if (parent_id < 0) {
         ESP_LOGW(TAG, "no parent found this wake cycle");
-        sleep_wake_go_to_sleep(TEST_WAKE_INTERVAL_SEC);
+        sleep_wake_go_to_sleep(wake_interval_sec);
         return;
     }
     ESP_LOGI(TAG, "selected parent=0x%04x", (unsigned)parent_id);
@@ -82,7 +107,7 @@ void leaf_main_run(void) {
 
     data_frame_t reading = {
         .sender_id = short_address,
-        .needs_water = (raw < MOISTURE_DRY_THRESHOLD_RAW) ? NEEDS_WATER_TRUE : NEEDS_WATER_FALSE,
+        .needs_water = (raw < moisture_dry_threshold_raw) ? NEEDS_WATER_TRUE : NEEDS_WATER_FALSE,
         .battery_pct = 100, /* battery-voltage ADC channel is out of scope, same as M1 */
         .timestamp = 0,     /* real clock sync arrives with the hub in M3/M4 */
     };
@@ -91,5 +116,10 @@ void leaf_main_run(void) {
     ieee802154_radio_send(data_buf, (uint8_t)data_len);
     ESP_LOGI(TAG, "sent DATA frame: raw=%d needs_water=%d", raw, reading.needs_water);
 
-    sleep_wake_go_to_sleep(TEST_WAKE_INTERVAL_SEC);
+    listen_and_apply_config(short_address);
+
+    /* Re-read in case listen_and_apply_config just changed it -- the
+     * updated interval should govern this very sleep, not wait for next
+     * wake to take effect. */
+    sleep_wake_go_to_sleep(node_config_get_wake_interval_sec());
 }
