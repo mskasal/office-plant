@@ -3,13 +3,14 @@ import time
 
 from hub.main import make_on_frame, serial_poll_loop
 from hub.models import connect
-from hub.protocol_frame import BeaconFrame, DataFrame, NeedsWater
+from hub.protocol_frame import AnnounceFrame, BeaconFrame, DataFrame, NeedsWater
+from hub.provisioning import Hub as ProvisioningHub
 from hub.serial_bridge import ReceivedFrame
 
 
 def test_make_on_frame_ingests_data_frames():
     conn = connect()
-    on_frame = make_on_frame(conn)
+    on_frame = make_on_frame(conn, ProvisioningHub())
 
     on_frame(ReceivedFrame(frame=DataFrame(sender_id=1, needs_water=NeedsWater.TRUE, battery_pct=80, timestamp=0), rssi=-50))
 
@@ -17,9 +18,19 @@ def test_make_on_frame_ingests_data_frames():
     assert node == (1, 80)
 
 
-def test_make_on_frame_ignores_non_data_frames():
+def test_make_on_frame_records_announce_frames_in_provisioning_hub():
     conn = connect()
-    on_frame = make_on_frame(conn)
+    provisioning_hub = ProvisioningHub()
+    on_frame = make_on_frame(conn, provisioning_hub)
+
+    on_frame(ReceivedFrame(frame=AnnounceFrame(factory_id=0xBEEF), rssi=-40))
+
+    assert provisioning_hub.discoverable_nodes(conn) == [0xBEEF]
+
+
+def test_make_on_frame_ignores_beacon_frames():
+    conn = connect()
+    on_frame = make_on_frame(conn, ProvisioningHub())
 
     on_frame(ReceivedFrame(frame=BeaconFrame(sender_id=0, hop_count=0), rssi=-40))
 

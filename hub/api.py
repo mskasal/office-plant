@@ -11,12 +11,14 @@ reconsider it.
 
 import time
 from pathlib import Path
+from typing import Callable, Optional
 
-from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, Form, Request
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from hub.models import connect
+from hub.provisioning import Hub as ProvisioningHub
 
 DASHBOARD_DIR = Path(__file__).parent / "dashboard"
 templates = Jinja2Templates(directory=str(DASHBOARD_DIR / "templates"))
@@ -29,9 +31,16 @@ DEFAULT_WAKE_INTERVAL_SEC = 30
 OFFLINE_THRESHOLD_MULTIPLIER = 2  # spec Section 6: ">2x its expected interval"
 
 
-def create_app(db_path: str = "hub.db") -> FastAPI:
+def create_app(db_path: str = "hub.db", send: Optional[Callable[[bytes], None]] = None) -> FastAPI:
+    """`send` transmits an encoded frame to the dongle (real usage: bound to
+    a live SerialBridge.send, wired in hub/main.py). Defaults to a no-op so
+    the dashboard still runs standalone for bench testing without hardware
+    attached (per docs/developer-setup.md's dev-machine allowance) — BLINK/
+    CLAIM requests just silently go nowhere in that mode."""
     app = FastAPI()
     app.state.conn = connect(db_path)
+    app.state.provisioning_hub = ProvisioningHub()
+    app.state.send = send or (lambda payload: None)
 
     @app.get("/", response_class=HTMLResponse)
     def dashboard(request: Request):
@@ -63,5 +72,20 @@ def create_app(db_path: str = "hub.db") -> FastAPI:
             )
 
         return templates.TemplateResponse(request, "index.html", {"nodes": nodes})
+
+    @app.get("/discover", response_class=HTMLResponse)
+    def discover(request: Request):
+        factory_ids = app.state.provisioning_hub.discoverable_nodes(app.state.conn)
+        return templates.TemplateResponse(request, "discover.html", {"factory_ids": factory_ids})
+
+    @app.post("/discover/{factory_id}/blink")
+    def discover_blink(factory_id: int):
+        app.state.provisioning_hub.blink(factory_id, app.state.send)
+        return RedirectResponse("/discover", status_code=303)
+
+    @app.post("/discover/{factory_id}/claim")
+    def discover_claim(factory_id: int, name: str = Form(...)):
+        app.state.provisioning_hub.claim(app.state.conn, factory_id, name, app.state.send)
+        return RedirectResponse("/discover", status_code=303)
 
     return app

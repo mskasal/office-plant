@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Discover — Office Plant Swarm</title>
+<style>
+  body { font-family: sans-serif; margin: 2rem; }
+  table { border-collapse: collapse; width: 100%; max-width: 720px; }
+  th, td { text-align: left; padding: 0.5rem 1rem; border-bottom: 1px solid #ccc; }
+  form { display: inline; }
+  input[type=text] { padding: 0.25rem; }
+  button { padding: 0.25rem 0.75rem; margin-left: 0.25rem; }
+  nav { margin-bottom: 1.5rem; }
+</style>
+</head>
+<body>
+<nav><a href="/">Dashboard</a> | Discover</nav>
+<h1>Discover nearby plants</h1>
+<p>Unclaimed nodes announcing near the hub. Tap "Blink" to confirm which physical node it is, then name and claim it.</p>
+<table>
+  <thead>
+    <tr>
+      <th>Factory ID</th>
+      <th>Blink</th>
+      <th>Name and claim</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for factory_id in factory_ids %}
+    <tr>
+      <td>0x{{ "%04x"|format(factory_id) }}</td>
+      <td>
+        <form method="post" action="/discover/{{ factory_id }}/blink">
+          <button type="submit">Blink</button>
+        </form>
+      </td>
+      <td>
+        <form method="post" action="/discover/{{ factory_id }}/claim">
+          <input type="text" name="name" placeholder="e.g. Ficus - meeting room" required>
+          <button type="submit">Claim</button>
+        </form>
+      </td>
+    </tr>
+  {% else %}
+    <tr><td colspan="3">No unclaimed nodes discoverable right now.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</body>
+</html>
