@@ -1,4 +1,12 @@
-from hub.protocol_frame import BeaconFrame, DataFrame, NeedsWater, encode_beacon_frame, encode_data_frame
+from hub.protocol_frame import (
+    AnnounceFrame,
+    BeaconFrame,
+    DataFrame,
+    NeedsWater,
+    encode_announce_frame,
+    encode_beacon_frame,
+    encode_data_frame,
+)
 from hub.serial_bridge import SerialBridge, decode_rx_line, encode_tx_line
 
 
@@ -29,6 +37,17 @@ def test_decode_rx_line_parses_valid_data_frame():
     assert received is not None
     assert received.frame == DataFrame(sender_id=1, needs_water=NeedsWater.TRUE, battery_pct=80, timestamp=42)
     assert received.rssi == -52
+
+
+def test_decode_rx_line_parses_valid_announce_frame():
+    payload = encode_announce_frame(AnnounceFrame(factory_id=0xABCD))
+    line = f"RX {payload.hex()} -55\n"
+
+    received = decode_rx_line(line)
+
+    assert received is not None
+    assert received.frame == AnnounceFrame(factory_id=0xABCD)
+    assert received.rssi == -55
 
 
 def test_decode_rx_line_rejects_malformed_lines():
