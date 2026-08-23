@@ -8,9 +8,10 @@
 
 static const char *TAG = "root_main";
 
-/* Hop-count-0 root; matches the sim's HUB_ID=0 convention (sim/node.py).
- * Bench-only hardcoded address, same status as M1's TEST_NODE_SHORT_ADDRESS
- * — real per-node addressing arrives with M4 provisioning. */
+/* Hop-count-0 root; matches the sim's HUB_ID=0 convention (sim/node.py)
+ * and hub/provisioning.py's HUB_ID — this is a fixed identity, not a
+ * placeholder pending provisioning (only leaf nodes get a CLAIM-assigned
+ * address, M4). */
 #define ROOT_SHORT_ADDRESS 0x0000
 #define BEACON_INTERVAL_MS 5000
 #define RECEIVE_POLL_TIMEOUT_MS 200
@@ -53,6 +54,14 @@ static void log_received_frame(const uint8_t *buf, uint8_t len, int8_t rssi) {
             if (decode_beacon_frame(buf, len, &beacon) == 0) {
                 ESP_LOGI(TAG, "received BEACON sender=0x%04x hop_count=%d rssi=%d",
                          beacon.sender_id, beacon.hop_count, rssi);
+            }
+            break;
+        }
+        case FRAME_TYPE_ANNOUNCE: {
+            announce_frame_t announce;
+            if (decode_announce_frame(buf, len, &announce) == 0) {
+                ESP_LOGI(TAG, "received ANNOUNCE factory_id=0x%04x rssi=%d",
+                         announce.factory_id, rssi);
             }
             break;
         }

@@ -7,13 +7,10 @@
 #include "ieee802154_radio.h"
 #include "protocol_frame.h"
 #include "mesh_parent_select.h"
+#include "node_identity.h"
 
 static const char *TAG = "leaf_main";
 
-/* Bench-only hardcoded test address, distinct from M1's 0x0001 and the
- * root's 0x0000 (root_main.c) — real per-node addressing arrives with M4
- * provisioning. */
-#define LEAF_SHORT_ADDRESS 0x0002
 #define TEST_WAKE_INTERVAL_SEC 30
 #define DISCOVERY_LISTEN_TIMEOUT_MS 2000
 #define MAX_PARENT_CANDIDATES 8
@@ -56,7 +53,8 @@ static size_t listen_for_beacons(parent_candidate_t *candidates, size_t max_cand
 
 void leaf_main_run(void) {
     sleep_wake_log_boot();
-    ieee802154_radio_init(LEAF_SHORT_ADDRESS);
+    uint16_t short_address = node_identity_get_short_address();
+    ieee802154_radio_init(short_address);
 
     parent_candidate_t candidates[MAX_PARENT_CANDIDATES];
     size_t candidate_count = listen_for_beacons(candidates, MAX_PARENT_CANDIDATES);
@@ -70,7 +68,7 @@ void leaf_main_run(void) {
     ESP_LOGI(TAG, "selected parent=0x%04x", (unsigned)parent_id);
 
     join_frame_t join = {
-        .sender_id = LEAF_SHORT_ADDRESS,
+        .sender_id = short_address,
         .target_parent_id = (uint16_t)parent_id,
     };
     uint8_t join_buf[PROTOCOL_FRAME_MAX_LEN];
@@ -83,7 +81,7 @@ void leaf_main_run(void) {
     moisture_sensor_deinit();
 
     data_frame_t reading = {
-        .sender_id = LEAF_SHORT_ADDRESS,
+        .sender_id = short_address,
         .needs_water = (raw < MOISTURE_DRY_THRESHOLD_RAW) ? NEEDS_WATER_TRUE : NEEDS_WATER_FALSE,
         .battery_pct = 100, /* battery-voltage ADC channel is out of scope, same as M1 */
         .timestamp = 0,     /* real clock sync arrives with the hub in M3/M4 */
