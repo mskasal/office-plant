@@ -21,7 +21,7 @@ def test_connect_creates_nodes_and_readings_tables():
         row[0]
         for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
     }
-    assert {"nodes", "readings"} <= tables
+    assert {"nodes", "readings", "node_config"} <= tables
 
 
 def test_nodes_table_has_spec_section_6_columns():

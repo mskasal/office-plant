@@ -1,4 +1,9 @@
-"""SQLite schema exactly as specified in spec Section 6."""
+"""SQLite schema. `nodes`/`readings` are exactly as specified in spec
+Section 6 -- unmodified since M3. `node_config` is new (M5): spec Section
+4.1 commits to hub-governed config push as core v1 behavior, but Section
+6's data model never says where the hub stores what it intends to push --
+a real gap between those two sections. Kept as its own table rather than
+extending `nodes`, since Section 6 fixes that schema exactly."""
 
 import sqlite3
 
@@ -16,6 +21,13 @@ CREATE TABLE IF NOT EXISTS readings (
     node_id INTEGER NOT NULL,
     timestamp INTEGER NOT NULL,
     moisture_status TEXT NOT NULL,
+    FOREIGN KEY (node_id) REFERENCES nodes(id)
+);
+
+CREATE TABLE IF NOT EXISTS node_config (
+    node_id INTEGER PRIMARY KEY,
+    wake_interval_sec INTEGER NOT NULL,
+    moisture_dry_threshold_raw INTEGER NOT NULL,
     FOREIGN KEY (node_id) REFERENCES nodes(id)
 );
 """
