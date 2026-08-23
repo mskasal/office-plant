@@ -10,7 +10,7 @@ from hub.serial_bridge import ReceivedFrame
 
 def test_make_on_frame_ingests_data_frames():
     conn = connect()
-    on_frame = make_on_frame(conn, ProvisioningHub())
+    on_frame = make_on_frame(conn, ProvisioningHub(), send=lambda payload: None)
 
     on_frame(ReceivedFrame(frame=DataFrame(sender_id=1, needs_water=NeedsWater.TRUE, battery_pct=80, timestamp=0), rssi=-50))
 
@@ -18,10 +18,23 @@ def test_make_on_frame_ingests_data_frames():
     assert node == (1, 80)
 
 
+def test_make_on_frame_pushes_config_when_operator_set_one():
+    conn = connect()
+    conn.execute("INSERT INTO nodes (id, role) VALUES (1, 'leaf')")
+    conn.execute("INSERT INTO node_config (node_id, wake_interval_sec, moisture_dry_threshold_raw) VALUES (1, 3600, 1900)")
+    conn.commit()
+    sent = []
+    on_frame = make_on_frame(conn, ProvisioningHub(), send=sent.append)
+
+    on_frame(ReceivedFrame(frame=DataFrame(sender_id=1, needs_water=NeedsWater.TRUE, battery_pct=80, timestamp=0), rssi=-50))
+
+    assert len(sent) == 1
+
+
 def test_make_on_frame_records_announce_frames_in_provisioning_hub():
     conn = connect()
     provisioning_hub = ProvisioningHub()
-    on_frame = make_on_frame(conn, provisioning_hub)
+    on_frame = make_on_frame(conn, provisioning_hub, send=lambda payload: None)
 
     on_frame(ReceivedFrame(frame=AnnounceFrame(factory_id=0xBEEF), rssi=-40))
 
@@ -30,7 +43,7 @@ def test_make_on_frame_records_announce_frames_in_provisioning_hub():
 
 def test_make_on_frame_ignores_beacon_frames():
     conn = connect()
-    on_frame = make_on_frame(conn, ProvisioningHub())
+    on_frame = make_on_frame(conn, ProvisioningHub(), send=lambda payload: None)
 
     on_frame(ReceivedFrame(frame=BeaconFrame(sender_id=0, hop_count=0), rssi=-40))
 
