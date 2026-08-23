@@ -79,3 +79,49 @@ int decode_data_frame(const uint8_t *buf, size_t len, data_frame_t *out) {
     out->timestamp = read_u32le(buf + 5);
     return 0;
 }
+
+size_t encode_blink_frame(const blink_frame_t *in, uint8_t *out_buf) {
+    out_buf[0] = FRAME_TYPE_BLINK;
+    write_u16le(out_buf + 1, in->hub_id);
+    write_u16le(out_buf + 3, in->target_node_id);
+    return BLINK_FRAME_LEN;
+}
+
+size_t encode_claim_frame(const claim_frame_t *in, uint8_t *out_buf) {
+    out_buf[0] = FRAME_TYPE_CLAIM;
+    write_u16le(out_buf + 1, in->assigned_short_address);
+    write_u16le(out_buf + 3, in->hub_id);
+    return CLAIM_FRAME_LEN;
+}
+
+size_t encode_announce_frame(const announce_frame_t *in, uint8_t *out_buf) {
+    out_buf[0] = FRAME_TYPE_ANNOUNCE;
+    write_u16le(out_buf + 1, in->factory_id);
+    return ANNOUNCE_FRAME_LEN;
+}
+
+int decode_blink_frame(const uint8_t *buf, size_t len, blink_frame_t *out) {
+    if (len != BLINK_FRAME_LEN || buf[0] != FRAME_TYPE_BLINK) {
+        return -1;
+    }
+    out->hub_id = read_u16le(buf + 1);
+    out->target_node_id = read_u16le(buf + 3);
+    return 0;
+}
+
+int decode_claim_frame(const uint8_t *buf, size_t len, claim_frame_t *out) {
+    if (len != CLAIM_FRAME_LEN || buf[0] != FRAME_TYPE_CLAIM) {
+        return -1;
+    }
+    out->assigned_short_address = read_u16le(buf + 1);
+    out->hub_id = read_u16le(buf + 3);
+    return 0;
+}
+
+int decode_announce_frame(const uint8_t *buf, size_t len, announce_frame_t *out) {
+    if (len != ANNOUNCE_FRAME_LEN || buf[0] != FRAME_TYPE_ANNOUNCE) {
+        return -1;
+    }
+    out->factory_id = read_u16le(buf + 1);
+    return 0;
+}

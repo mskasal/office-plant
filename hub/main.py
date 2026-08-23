@@ -12,21 +12,25 @@ import time
 
 from hub.api import create_app
 from hub.ingest import ingest_data_frame
-from hub.protocol_frame import DataFrame
+from hub.protocol_frame import AnnounceFrame, DataFrame
+from hub.provisioning import Hub as ProvisioningHub
 from hub.serial_bridge import ReceivedFrame, SerialBridge
 
-# BEACON/JOIN frames are protocol-level only (M2 link-forming / M4
-# provisioning concerns) — M3's hub only persists DATA readings, per spec
-# Section 6's nodes/readings schema.
+# BEACON/JOIN frames are protocol-level only (M2 link-forming concerns) —
+# the hub only acts on DATA (readings, M3) and ANNOUNCE (discovery, M4).
 SERIAL_IDLE_POLL_INTERVAL_SEC = 0.05
 
 
-def make_on_frame(conn):
-    """Builds the SerialBridge callback that ingests DATA frames into `conn`."""
+def make_on_frame(conn, provisioning_hub: ProvisioningHub):
+    """Builds the SerialBridge callback: DATA frames get ingested as
+    readings, ANNOUNCE frames update the provisioning Hub's discoverable-
+    nodes registry."""
 
     def on_frame(received: ReceivedFrame) -> None:
         if isinstance(received.frame, DataFrame):
             ingest_data_frame(conn, received.frame, timestamp=int(time.time()))
+        elif isinstance(received.frame, AnnounceFrame):
+            provisioning_hub.observe_announce(received.frame, rssi=received.rssi)
 
     return on_frame
 
@@ -57,7 +61,8 @@ def main() -> None:
     app = create_app(db_path=args.db)
 
     port = serial.Serial(args.serial_port, args.baud_rate, timeout=1)
-    bridge = SerialBridge(port, on_frame=make_on_frame(app.state.conn))
+    bridge = SerialBridge(port, on_frame=make_on_frame(app.state.conn, app.state.provisioning_hub))
+    app.state.send = bridge.send  # replaces create_app's no-op default now that a real port exists
 
     stop_event = threading.Event()
     poll_thread = threading.Thread(target=serial_poll_loop, args=(bridge, stop_event), daemon=True)
